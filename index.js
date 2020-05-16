@@ -52,7 +52,17 @@ const userIsPublisherOrOwner = auth => {
   return isPublisher ? isPublisher : isOwner;
 };
 
-const access = { userIsAdmin, userOwnsItem, userIsPublisher, userIsOwner, userIsAdminOrOwner, userIsAdminOrPublisher, userIsPublisherOrOwner };
+const userIsAdminOrPublisherOrOwner = auth => {
+  const isAdmin = access.userIsAdmin(auth);
+  const isPublisher = access.userIsPublisher(auth);
+  const isOwner = access.userOwnsItem(auth);
+  if(isAdmin || isPublisher || isOwner) {
+    return true;
+  } 
+  return false;
+}
+
+const access = { userIsAdmin, userOwnsItem, userIsPublisher, userIsOwner, userIsAdminOrOwner, userIsAdminOrPublisher, userIsPublisherOrOwner, userIsAdminOrPublisherOrOwner };
 
 keystone.createList('User', {
   fields: {
@@ -81,9 +91,9 @@ keystone.createList('User', {
     password: {
       type: Password,
     },
-    articles: {
-      type: Relationship, ref: 'Article', many: true,
-    }
+    // articles: {
+    //   type: Relationship, ref: 'Article', many: true,
+    // }
   },
   access: {
     update: access.userIsAdminOrOwner,
@@ -99,7 +109,7 @@ keystone.createList('Article', {
     picture:  { type: File, adapter: fileAdapter },
     content:  { type: Text, isRequired: true },
     category: { type: Relationship, ref: 'Category', many: true, isRequired: true },
-    journalist:   { type: Relationship, ref: 'Journalist', isRequired:true},
+    user:     { type: Relationship, ref: 'User', isRequired:true },
     isPublished:  { type: Checkbox, defaultValue: false, access: {
         // create: access.userIsAdminOrPublisher,
         update: access.userIsAdminOrPublisher,
@@ -108,8 +118,9 @@ keystone.createList('Article', {
   },
   labelField: "title",
   access: {
-    update: access.userIsAdminOrOwner,
-    delete: access.userIsAdmin,
+    read: access.userIsAdminOrPublisherOrOwner,
+    update: access.userIsAdminOrPublisherOrOwner,
+    delete: access.userIsAdminOrPublisherOrOwner,
   },
 });
 
@@ -118,7 +129,7 @@ keystone.createList('Category', {
     title: { type: Text, isRequired: true},
   },
   labelField: "title",
-  access: {
+  access: { //Tout le monde peut gérer les catégories, sauf pour supprimer (admin)
     delete: access.userIsAdmin,
     auth: true,
   },
