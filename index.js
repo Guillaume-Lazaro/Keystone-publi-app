@@ -25,34 +25,34 @@ const fileAdapter = new LocalFileAdapter({
 
 // Access control functions
 const userIsAdmin = ({ authentication: { item: user } }) => Boolean(user && user.isAdmin);
-// const userOwnsItem = ({ authentication: { item: user } }) => {
-//   if (!user) {
-//     return false;
-//   }
-//   return { id: user.id };
-// };
+const userOwnsItem = ({ authentication: { item: user } }) => {
+  if (!user) {
+    return false;
+  }
+  return { id: user.id };
+};
 const userIsPublisher   = ({ authentication: { item: user}}) => Boolean(user && user.isPublisher);
-const userIsJournalist  = ({ authentication: { item: user}}) => Boolean(user && user.userIsJournalist);
+const userIsOwner  = ({ authentication: { item: user}}) => Boolean(user && user.userIsOwner);
 
-const userIsAdminOrJournalist = auth => {
+const userIsAdminOrOwner = auth => {
   const isAdmin = access.userIsAdmin(auth);
-  // const isOwner = access.userOwnsItem(auth);
-  const isJournalist = access.userIsJournalist(auth);
-  return isAdmin ? isAdmin : isJournalist;
+  const isOwner = access.userOwnsItem(auth);
+  // const isOwner = access.userIsOwner(auth);
+  return isAdmin ? isAdmin : isOwner;
 };
 const userIsAdminOrPublisher = auth => {
   const isAdmin = access.userIsAdmin(auth);
   const isPublisher = access.userIsPublisher(auth);
   return isAdmin ? isAdmin : isPublisher;
 };
-const userIsPublisherOrJournalist = auth => {
+const userIsPublisherOrOwner = auth => {
   const isPublisher = access.userIsPublisher(auth);
-  // const isOwner = access.userOwnsItem(auth);
-  const isJournalist = access.userIsJournalist(auth);
-  return isPublisher ? isPublisher : isJournalist;
+  const isOwner = access.userOwnsItem(auth);
+  // const isOwner = access.userIsOwner(auth);
+  return isPublisher ? isPublisher : isOwner;
 };
 
-const access = { userIsAdmin, userIsPublisher, userIsJournalist, userIsAdminOrJournalist, userIsAdminOrPublisher, userIsPublisherOrJournalist };
+const access = { userIsAdmin, userOwnsItem, userIsPublisher, userIsOwner, userIsAdminOrOwner, userIsAdminOrPublisher, userIsPublisherOrOwner };
 
 keystone.createList('User', {
   fields: {
@@ -63,35 +63,30 @@ keystone.createList('User', {
     },
     isAdmin: {
       type: Checkbox,
-      // Field-level access controls
-      // Here, we set more restrictive field access so a non-admin cannot make themselves admin.
-      access: {
-        update: access.userIsAdmin,
-      },
-    },
-    isJournalist: {
-      type: Checkbox,
       defaultValue: false,
       access: {
+        create: access.userIsAdmin,
+        read:   access.userIsAdmin,
+        delete: access.userIsAdmin,
         update: access.userIsAdmin,
       },
     },
     isPublisher: {
       type: Checkbox,
       defaultValue: false,
-      access: {
-        update: access.userIsAdmin,
-      },
+      // access: {    //Rien du tout, tout le monde peut etre publisher
+      //   update: access.userIsAdmin,
+      // },
     },
     password: {
       type: Password,
     },
+    articles: {
+      type: Relationship, ref: 'Article', many: true,
+    }
   },
-  // List-level access controls
   access: {
-    read: access.userIsAdminOrJournalist,
-    update: access.userIsAdminOrJournalist,
-    create: access.userIsAdmin,
+    update: access.userIsAdminOrOwner,
     delete: access.userIsAdmin,
     auth: true,
   },
@@ -113,34 +108,20 @@ keystone.createList('Article', {
   },
   labelField: "title",
   access: {
-    update: access.userIsPublisherOrJournalist,
-    delete: access.userIsPublisherOrJournalist
+    update: access.userIsAdminOrOwner,
+    delete: access.userIsAdmin,
   },
 });
 
 keystone.createList('Category', {
   fields: {
-    title: { type: Text, isRequired: true, access: {
-      update: access.userIsAdmin,
-    }},
+    title: { type: Text, isRequired: true},
   },
   labelField: "title",
   access: {
-    update: access.userIsAdmin,
     delete: access.userIsAdmin,
     auth: true,
   },
-});
-
-keystone.createList('Journalist', {
-  fields: {
-    name: { type: Text, isRequired: true },
-    user: { type: Relationship, ref: 'User' },
-  },
-  labelField: "name",
-  access: {
-    update:  access.userIsAdminOrJournalist,
-  }
 });
 
 const authStrategy = keystone.createAuthStrategy({

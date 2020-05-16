@@ -20,7 +20,6 @@ const GET_ARTICLES = `
       summary
       content
       picture {publicUrl}
-      journalist {name}
       category {title}
     }
   }
